@@ -6,7 +6,8 @@
   "description": "Simple Todo app (JS frontend+backend) using localStorage. Training base for Vitest and Cypress.",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "vitest run"
   },
   "engines": {
     "node": ">=18"
@@ -14,5 +15,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.11"
   }
 }
