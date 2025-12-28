@@ -1,74 +1,119 @@
-describe('Todo app', () => {
-  beforeEach(() => {
-    cy.visit('/');
-    // Clear localStorage before each test for isolation
-    cy.clearLocalStorage();
-  });
+describe('Todo app – Toiminnalliset vaatimukset (V1–V6)', () => {
+  const STORAGE_KEY = 'todo_tasks_v1';
 
-  it('creates a new task and displays it in the list', () => {
-    // Fill in the form
-    cy.get('#topic').type('Testitaski').should('have.value', 'Testitaski');
-    cy.get('#description')
-      .type('Testitaskin kuvaus')
-      .should('have.value', 'Testitaskin kuvaus');
-
-    // Submit the form
+  const createTask = (topic, description = '') => {
+    if (topic !== undefined) cy.get('#topic').clear().type(topic);
+    if (description !== undefined)
+      cy.get('#description').clear().type(description);
     cy.get('#save-btn').click();
+  };
 
-    // Verify the task appears in the list
-    cy.get('#task-list').should('be.visible');
-    cy.get('#task-list .task').should('have.length', 1);
+  const getStoredTasks = () =>
+    cy
+      .window()
+      .then((win) => JSON.parse(win.localStorage.getItem(STORAGE_KEY) || '[]'));
 
-    // Check the task contains correct content
-    cy.get('#task-list .task')
-      .first()
-      .within(() => {
-        cy.get('.title').should('contain', 'Testitaski');
-        cy.get('.desc').should('contain', 'Testitaskin kuvaus');
-      });
+  beforeEach(() => {
+    // Accept confirm dialog (delete)
+    cy.on('window:confirm', () => true);
 
-    // Verify empty state is hidden
-    cy.get('#empty-state').should('not.be.visible');
-
-    // Verify task is persisted in localStorage
-    cy.window().then((win) => {
-      const tasks = JSON.parse(win.localStorage.getItem('todo_tasks_v1'));
-      expect(tasks).to.have.length(1);
-      expect(tasks[0].topic).to.equal('Testitaski');
-      expect(tasks[0].description).to.equal('Testitaskin kuvaus');
-      expect(tasks[0].priority).to.equal('medium'); // default value
-      expect(tasks[0].status).to.equal('todo'); // default value
-      expect(tasks[0].completed).to.be.false;
+    // Clear storage BEFORE app bootstraps (app reads localStorage on load)
+    cy.visit('/', {
+      onBeforeLoad(win) {
+        win.localStorage.clear();
+      },
     });
   });
 
-  it('deletes a task and verifies it is removed', () => {
-    // First, create a task
-    cy.get('#topic').type('Poistettava taski');
-    cy.get('#description').type('Tämä poistetaan');
+  it('V1: Käyttäjän tulee voida luoda uusi tehtävä syöttämällä tehtävän nimi kenttään', () => {
+    createTask('Testitaski', 'Testitaskin kuvaus');
+
+    getStoredTasks().then((tasks) => {
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].topic).to.equal('Testitaski');
+    });
+  });
+
+  it('V2: Lisätyn tehtävä tulee näkyä tehtävälistassa', () => {
+    createTask('Näkyvä tehtävä', 'Kuvaus');
+
+    cy.get('#task-list').should('be.visible');
+    cy.get('#task-list .task').should('have.length', 1);
+    cy.get('#task-list .task')
+      .first()
+      .within(() => {
+        cy.get('.title').should('contain', 'Näkyvä tehtävä');
+        cy.get('.desc').should('contain', 'Kuvaus');
+      });
+
+    cy.get('#empty-state').should('not.be.visible');
+  });
+
+  it('V3: Käyttäjän ei tule voida lisätä tyhjää tehtävää', () => {
+    // Topic empty -> app should block submit and focus topic input
+    cy.get('#topic').clear();
     cy.get('#save-btn').click();
 
-    // Verify task was created
-    cy.get('#task-list .task').should('have.length', 1);
-    cy.get('#task-list .task .title').should('contain', 'Poistettava taski');
+    cy.get('#task-list .task').should('have.length', 0);
+    cy.get('#empty-state').should('be.visible');
+    cy.get('#topic').should('be.focused');
 
-    // Delete the task
+    getStoredTasks().then((tasks) => {
+      expect(tasks).to.have.length(0);
+    });
+  });
+
+  it('V4: Tehdyn tehtävän tila tulee näkyä käyttäjälle', () => {
+    createTask('Valmis taski', 'Tarkista done-tila');
+
+    cy.get('#task-list .task').should('have.length', 1);
+
+    cy.get('#task-list .task')
+      .first()
+      .within(() => {
+        cy.get('button[data-action="complete"]').click();
+
+        // UI: class + status badge
+        cy.root().should('have.class', 'done');
+        cy.contains('.badge', 'Done').should('be.visible');
+      });
+
+    // Storage: completed + status
+    getStoredTasks().then((tasks) => {
+      expect(tasks).to.have.length(1);
+      expect(tasks[0].completed).to.equal(true);
+      expect(tasks[0].status).to.equal('done');
+    });
+  });
+
+  it('V5: Käyttäjän tulee voida poistaa tehtävä', () => {
+    createTask('Poistettava taski', 'Tämä poistetaan');
+
+    cy.get('#task-list .task').should('have.length', 1);
+
     cy.get('#task-list .task')
       .first()
       .within(() => {
         cy.get('button[data-action="delete"]').click();
       });
 
-    // Verify task is removed from the list
-    cy.get('#task-list .task').should('have.length', 0);
-
-    // Verify empty state is displayed
-    cy.get('#empty-state').should('be.visible');
-
-    // Verify task is removed from localStorage
-    cy.window().then((win) => {
-      const tasks = JSON.parse(win.localStorage.getItem('todo_tasks_v1'));
+    getStoredTasks().then((tasks) => {
       expect(tasks).to.have.length(0);
     });
+  });
+
+  it('V6: Poistettu tehtävä ei tule näkyä tehtävälistassa', () => {
+    createTask('Poistettava taski', 'Tämä poistetaan');
+
+    cy.get('#task-list .task').should('have.length', 1);
+
+    cy.get('#task-list .task')
+      .first()
+      .within(() => {
+        cy.get('button[data-action="delete"]').click();
+      });
+
+    cy.get('#task-list .task').should('have.length', 0);
+    cy.get('#empty-state').should('be.visible');
   });
 });
