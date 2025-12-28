@@ -15,6 +15,13 @@
 
 'use strict';
 
+import {
+  addTask,
+  updateTask,
+  toggleTaskComplete,
+  deleteTaskById,
+} from './todoLogic.js';
+
 (function () {
   // Storage key and helpers
   const STORAGE_KEY = 'todo_tasks_v1';
@@ -32,11 +39,9 @@
   function saveTasks(tasks) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }
-  function generateId() {
+  function generateId(now) {
     return (
-      't_' +
-      Math.random().toString(36).slice(2, 8) +
-      Date.now().toString(36).slice(-4)
+      't_' + Math.random().toString(36).slice(2, 8) + now.toString(36).slice(-4)
     );
   }
 
@@ -163,24 +168,14 @@
     }
 
     if (inputId.value) {
-      const idx = tasks.findIndex((t) => t.id === inputId.value);
-      if (idx !== -1) {
-        tasks[idx] = {
-          ...tasks[idx],
-          ...payload,
-          completed: payload.status === 'done' ? true : tasks[idx].completed,
-          updatedAt: now,
-        };
-      }
+      const result = updateTask(tasks, inputId.value, payload, { now });
+      tasks = result.tasks;
     } else {
-      const newTask = {
-        id: generateId(),
-        ...payload,
-        completed: payload.status === 'done',
-        createdAt: now,
-        updatedAt: now,
-      };
-      tasks.push(newTask);
+      const result = addTask(tasks, payload, {
+        now,
+        id: generateId(now),
+      });
+      tasks = result.tasks;
     }
     saveTasks(tasks);
     resetForm();
@@ -224,25 +219,16 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     if (action === 'complete') {
-      const t = tasks[idx];
-      const nextCompleted = !t.completed;
-      tasks[idx] = {
-        ...t,
-        completed: nextCompleted,
-        status: nextCompleted
-          ? 'done'
-          : t.status === 'done'
-          ? 'todo'
-          : t.status,
-        updatedAt: Date.now(),
-      };
+      const result = toggleTaskComplete(tasks, id, { now: Date.now() });
+      tasks = result.tasks;
       saveTasks(tasks);
       render();
     }
     if (action === 'delete') {
       const confirmDelete = window.confirm('Delete this task?');
       if (!confirmDelete) return;
-      tasks.splice(idx, 1);
+      const result = deleteTaskById(tasks, id);
+      tasks = result.tasks;
       saveTasks(tasks);
       render();
     }
