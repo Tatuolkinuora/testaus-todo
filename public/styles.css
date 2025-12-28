@@ -138,6 +138,17 @@ button:disabled {
 .pill.high {
   color: #c3425b;
 }
+button.pill {
+  border: none;
+  cursor: pointer;
+  padding: 2px 8px;
+  background-color: #fff;
+}
+
+button.pill:focus {
+  outline: 2px solid var(--brand-2);
+  outline-offset: 2px;
+}
 
 .task-list {
   list-style: none;

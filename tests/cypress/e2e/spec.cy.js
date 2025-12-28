@@ -8,6 +8,12 @@ describe('Todo app – Toiminnalliset vaatimukset (V1–V6)', () => {
     cy.get('#save-btn').click();
   };
 
+  const createTaskWithPriority = (topic, priority) => {
+    cy.get('#topic').clear().type(topic);
+    cy.get('#priority').select(priority);
+    cy.get('#save-btn').click();
+  };
+
   const getStoredTasks = () =>
     cy
       .window()
@@ -115,5 +121,28 @@ describe('Todo app – Toiminnalliset vaatimukset (V1–V6)', () => {
 
     cy.get('#task-list .task').should('have.length', 0);
     cy.get('#empty-state').should('be.visible');
+  });
+
+  it('Priority filter: shows only clicked priority and can clear filter', () => {
+    // Create 3 tasks with different priorities
+    createTaskWithPriority('Low task', 'low');
+    createTaskWithPriority('Med task', 'medium');
+    createTaskWithPriority('High task', 'high');
+
+    cy.get('#task-list .task').should('have.length', 3);
+
+    // Filter High
+    cy.get('#priority-filters button[data-filter="high"]').click();
+    cy.get('#task-list .task').should('have.length', 1);
+    cy.get('#task-list .task .title').should('contain', 'High task');
+
+    // Filter Low
+    cy.get('#priority-filters button[data-filter="low"]').click();
+    cy.get('#task-list .task').should('have.length', 1);
+    cy.get('#task-list .task .title').should('contain', 'Low task');
+
+    // Clear filter
+    cy.get('#priority-filters button[data-filter="all"]').click();
+    cy.get('#task-list .task').should('have.length', 3);
   });
 });

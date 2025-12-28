@@ -46,6 +46,9 @@ import {
   }
 
   // DOM refs
+  const filters = /** @type {HTMLElement} */ (
+    document.getElementById('priority-filters')
+  );
   const form = /** @type {HTMLFormElement} */ (
     document.getElementById('task-form')
   );
@@ -82,17 +85,23 @@ import {
 
   // State
   let tasks = loadTasks();
-
+  let activePriorityFilter = 'all'; // 'all' | 'low' | 'medium' | 'high'
   // Render
   function render() {
     list.innerHTML = '';
-    if (!tasks.length) {
+
+    const visibleTasks =
+      activePriorityFilter === 'all'
+        ? tasks
+        : tasks.filter((t) => t.priority === activePriorityFilter);
+
+    if (!visibleTasks.length) {
       emptyState.style.display = 'block';
       return;
     }
     emptyState.style.display = 'none';
 
-    tasks
+    visibleTasks
       .sort((a, b) => {
         // Not-done first, then by priority (high->low), then newest first
         if (a.completed !== b.completed) return a.completed ? 1 : -1;
@@ -232,6 +241,16 @@ import {
       saveTasks(tasks);
       render();
     }
+  });
+
+  filters?.addEventListener('click', (e) => {
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (target.tagName !== 'BUTTON') return;
+    const value = target.dataset.filter;
+    if (!value) return;
+
+    activePriorityFilter = value; // 'low'|'medium'|'high'|'all'
+    render();
   });
 
   // Initial paint
